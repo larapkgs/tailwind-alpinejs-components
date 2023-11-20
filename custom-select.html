@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailwind + AlpineJs Custom Select</title>
+</head>
+
+<body>
+    <div class="flex justify-center items-center h-screen bg-gray-100 font-mono">
+        <div class="border p-5 w-[700px] bg-white rounded-lg">
+            
+            <h1 class="mb-2 text-sky-600 font-semibold">Custom select using Tailwind 3.x and Alpine 3.x</h1>
+
+            <!-- Custom Select -->
+            <div class="custom-select relative" x-data="customSelect()">
+                
+                <!-- Element -->
+                <div class="border w-full p-2 rounded flex">
+                    
+                    <!-- Label -->
+                    <div 
+                        class="w-full cursor-pointer grow"
+                        x-show="!isOpen()"
+                        x-text="label()"
+                        @click="open()"
+                        >
+                    </div>
+                    
+                    <!-- Open dropdown button -->
+                    <img
+                        src="img/chevron-down.svg"
+                        class="w-6 h-6 grow-0 cursor-pointer"
+                        x-show="!isOpen()"
+                        @click="open()"
+                    />
+                    
+                    <!-- Unset selection button -->
+                    <img
+                        src="img/close.svg"
+                        x-show="hasSelectedItem() && !isOpen()"
+                        @click="deselectItem()"
+                        class="w-6 h-6 grow-0 cursor-pointer"
+                    />
+                    
+                    <!-- Search input -->
+                    <input
+                        type="text"
+                        placeholder="start typing to search..." 
+                        class="w-full focus:outline-0"
+                        x-ref="searchInput"
+                        x-model="search"
+                        x-show="isOpen()" 
+                        @click.away="close()" 
+                        @keydown.down="activateNextItem()"
+                        @keydown.up="activatePrevItem()"
+                        @keyup.enter="selectItem()"
+                        @keyup.escape="close()"
+                    />
+                    
+                    <!-- Close dropdown button -->
+                    <img
+                        src="img/chevron-up.svg"
+                        class="w-6 h-6 grow-0 cursor-pointer"
+                        x-show="isOpen()"
+                        @click="close()"
+                    />
+                </div>
+                
+                <!-- Dropdown -->
+                <ul x-show="isOpen()" class="absolute w-full border bg-white rounded mt-2 max-h-52 overflow-auto">
+                    
+                    <!-- Item(s) -->
+                    <template x-for="(item, index) in results" :key="index">
+                        <li 
+                            class="p-2 cursor-pointer"
+                            :class="{'active bg-sky-600 text-white': isActiveItemIndex(index)}"        
+                            x-text="item"
+                            @click="selectItem()"
+                            @mouseover="activateItem(index)"
+                            @mouseout="deactivateItem()"
+                        ></li>
+                    </template>
+                </ul>
+            </div>
+            
+        </div>
+    </div>
+
+
+    <script type="module" src="./src/scripts/website.js"></script>
+
+    <script>
+        const customSelect = () => {
+            return {
+                _isOpen: false,
+                _items: [],
+                _activeItemIndex: undefined,
+                _selectedItem: undefined,
+                search: undefined,
+                results: [],
+                
+                async init() {
+                    const response = await fetch('countries.json');
+                    this.results = this._items = await this._fetchItems();
+
+                    this.$watch('search', value => this.filterItems(value));
+                },
+
+                async _fetchItems() {
+                    const response = await fetch('data/countries.json');
+                    return  (await response.json()).sort();
+                },
+
+                label() {
+                    return !this.hasSelectedItem()
+                        ?  `Click to select a county`
+                        : `Country: ${this.value()}`;
+                },
+
+                value() {
+                    return this._selectedItem;
+                },
+
+                filterItems(value) {
+                    valueToSearch = value.toLowerCase();
+                    
+                    return this.results = value
+                        ? this._items.filter(item  => item.toLowerCase().includes(valueToSearch))
+                        : this._items;
+                },
+
+                isOpen() {
+                    return this._isOpen;
+                },
+
+                open() {
+                    this._isOpen=true;
+
+                    setTimeout(() => this.$refs.searchInput.focus(), 10);
+                },
+                
+                close() {
+                    this._isOpen = false;
+                    this.search = '';
+                    this.deactivateItem();
+                },
+
+                hasSelectedItem() {
+                    return this._selectedItem ? true : false;
+                },
+                
+                selectItem() {
+                    if(!this.hasActiveItem) return;
+                    
+                    this._selectedItem = this.results[this._activeItemIndex];
+                    this.close();
+                },
+
+                deselectItem() {
+                    this._selectedItem = undefined;
+                },
+
+                hasActiveItem() {
+                    return this._activeItemIndex ? true : false;
+                },
+
+                isActiveItemIndex(index) {
+                    return this._activeItemIndex === index;
+                },
+
+                activateItem(index) {
+                    this._activeItemIndex = index;
+                },
+
+                activateNextItem() {
+                    const index = (this._activeItemIndex == undefined || this._activeItemIndex > this.results.length - 2)
+                        ? this._activeItemIndex = 0
+                        : this._activeItemIndex + 1;
+                    
+                    this.activateItem(index);
+
+                    this.scrollActiveItemIntoView();
+                },
+
+                activatePrevItem() {
+                    const index = (this._activeItemIndex == undefined || this._activeItemIndex === 0)
+                        ? this._activeItemIndex = this.results.length - 1
+                        : this._activeItemIndex - 1;
+
+                    this.activateItem(index);
+
+                    this.scrollActiveItemIntoView();
+                },
+
+                scrollActiveItemIntoView() {
+                    this.$nextTick(() => {
+                        document.querySelector('.active').scrollIntoView({block: "nearest", behavior: "smooth"});
+                    });
+                },
+
+                deactivateItem() {
+                    this._activeItemIndex = undefined;
+                },
+            }
+        }
+    </script>
+</body>
+
+</html>
